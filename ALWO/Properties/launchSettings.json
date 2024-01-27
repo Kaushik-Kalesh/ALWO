@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ALWO (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "ALWO (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

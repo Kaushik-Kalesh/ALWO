@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="ALWO.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ALWO"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <StackPanel x:Name="MainStackPanel" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel x:Name="WorkspaceTitleStackPanel" Orientation="Horizontal" Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBox PlaceholderText="Workspace Name" Margin="0, 0, 8, 0"/>
+            <Button x:Name="RunButton" Content="Run" Click="RunButton_Click"/>
+        </StackPanel>
+        <StackPanel x:Name="ProcessesStackPanel" Orientation="Vertical" Margin="12" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+            <Button x:Name="AddProcessesButton" Content="Add Process(es)" Visibility="Collapsed"
+                Click="AddProcessesButton_Click" Margin="0, 0, 0, 10" HorizontalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal">
+                <StackPanel x:Name="ProcessNamesStackPanel" Orientation="Vertical" Margin="0, 0, 100, 0" />
+                <StackPanel x:Name="DeleteButtonsStackPanel" Orientation="Vertical" Visibility="Collapsed" />
+            </StackPanel>
+            <StackPanel x:Name="EditControlStackPanel" Orientation="Horizontal" Margin="12"  HorizontalAlignment="Center" Visibility="Collapsed">
+                <Button x:Name="ClearProcessesButton" Content="Clear" Margin="0, 0, 8, 0"
+        Click="ClearProcessesButton_Click"/>
+                <Button x:Name="DoneButton" Content="Done" 
+Click="DoneButton_Click"/>
+            </StackPanel>
+        </StackPanel>
+        <Button x:Name="EditProcessesButton" Content="Edit" 
+        Click="EditProcessesButton_Click" HorizontalAlignment="Center"/>
+    </StackPanel>
+</Window>
