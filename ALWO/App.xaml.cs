@@ -30,6 +30,7 @@ namespace ALWO
         public App()
         {
             this.InitializeComponent();
+            WorkspaceInfoAccess.InitializeDatabase();
         }
 
         /// <summary>

@@ -22,18 +22,18 @@ using static System.Net.WebRequestMethods;
 
 namespace ALWO
 {
-    /// <summary>
-    /// An empty window that can be used on its own or navigated to within a Frame.
-    /// </summary>
     public sealed partial class MainWindow : Window
     {
-        private Dictionary<string, StorageFile> processes = new Dictionary<string, StorageFile>();
+        private Dictionary<string, Dictionary<string, string>> workspaces = new Dictionary<string, Dictionary<string, string>>();
+        private string chosenWorkspaceName = "";
 
         public MainWindow()
         {
             this.InitializeComponent();
+            FetchWorkspaces();
         }
 
+        // Helper function to display Message Dialogs
         private async void ShowMessageDialog(string message)
         {
             ContentDialog dialog = new ContentDialog
@@ -47,28 +47,104 @@ namespace ALWO
             await dialog.ShowAsync();
         }
 
-        private void AddProcess(StorageFile file)
+        // Fetch workspaces from sqlite db
+        private void FetchWorkspaces()
         {
-            if (processes.TryAdd(file.Name, file))
+            foreach (var workspaceName in WorkspaceInfoAccess.GetWorkspaceNames())
             {
-                // Add process which includes a Name and Delete Button
-                ProcessNamesStackPanel.Children.Add(new TextBlock
+                workspaces[workspaceName] = new Dictionary<string, string>();
+                foreach (var processPath in WorkspaceInfoAccess.GetProcessPaths(workspaceName))
                 {
-                    Text = file.Name,
-                    FontSize = 20,
-                    Margin = new Thickness(0, 0, 0, 15)
-                });
-
-                // Assign a unique Name to the button
-                ButtonBase deleteButton = new Button
-                {
-                    Name = $"DeleteButton{file.Name}",
-                    Content = "Delete",
-                    Margin = new Thickness(0, 0, 0, 10)
-                };
-                deleteButton.Click += DeleteButton_Click;
-                DeleteButtonsStackPanel.Children.Add(deleteButton);
+                    var processName = System.IO.Path.GetFileName(processPath);
+                    if (processPath == "")
+                    {
+                        workspaces[workspaceName].TryAdd(processName, processPath);
+                    }
+                }     
             }
+        }
+        private void AddProcess(string processName)
+        {
+            // Add process which includes a Name and Delete Button
+            ProcessNamesStackPanel.Children.Add(new TextBlock
+            {
+                Text = processName,
+                FontSize = 20,
+                Margin = new Thickness(0, 0, 0, 15)
+            });
+
+            // Assign a unique Name to the button
+            ButtonBase deleteButton = new Button
+            {
+                Name = $"DeleteButton{processName}",
+                Content = "Delete",
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            deleteButton.Click += DeleteButton_Click;
+            DeleteButtonsStackPanel.Children.Add(deleteButton);
+        }
+
+        // Clear processes from the UI
+        private void ClearProcesses()
+        {
+            workspaces.Remove(chosenWorkspaceName);
+            ProcessNamesStackPanel.Children.Clear();
+            DeleteButtonsStackPanel.Children.Clear();
+        }
+
+        //Event Handlers
+        private void WorkspaceNameTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            FetchProcessesButton.Content = workspaces.Keys.Contains(WorkspaceNameTextBox.Text) ? "Fetch" : "Create";
+        }
+
+        private void FetchProcessesButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Ignore fetch requests from the workspace already in focus
+            if (WorkspaceNameTextBox.Text == chosenWorkspaceName)
+            {
+                return;
+            }
+
+            ClearProcesses();             
+
+            chosenWorkspaceName = WorkspaceNameTextBox.Text;
+            workspaces[chosenWorkspaceName] = new Dictionary<string, string>();
+            foreach (var processPath in WorkspaceInfoAccess.GetProcessPaths(chosenWorkspaceName))
+            {
+                var processName = System.IO.Path.GetFileName(processPath);
+                workspaces[chosenWorkspaceName].TryAdd(processName, processPath);
+                AddProcess(processName);
+            }
+            
+            RunButton.Visibility = Visibility.Visible;
+            EditProcessesButton.Visibility = Visibility.Visible;
+            DeleteWorkspaceButton.Visibility = Visibility.Visible;
+            ProcessNamesStackPanel.Visibility = workspaces[chosenWorkspaceName].Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        private void EditProcessesButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Make the editing tools visible
+            ProcessNamesStackPanel.Visibility = Visibility.Visible;
+            AddProcessesButton.Visibility = Visibility.Visible;
+            DeleteButtonsStackPanel.Visibility = Visibility.Visible;
+            EditControlStackPanel.Visibility = Visibility.Visible;
+            EditProcessesButton.Visibility = Visibility.Collapsed;
+
+            // Un-Center the ProcessesNames
+            ProcessNamesStackPanel.Margin = new Thickness(0, 0, 100, 0);
+            foreach (TextBlock processName in ProcessNamesStackPanel.Children)
+            {
+                processName.HorizontalAlignment = HorizontalAlignment.Left;
+            }
+        }
+
+        private void DeleteWorkspaceButton_Click(object sender, RoutedEventArgs e)
+        {
+            WorkspaceInfoAccess.DeleteWorkspace(chosenWorkspaceName);
+            ClearProcesses();
+            chosenWorkspaceName = "";
         }
 
         private async void AddProcessesButton_Click(object sender, RoutedEventArgs e)
@@ -95,42 +171,30 @@ namespace ALWO
             {
                 foreach (StorageFile file in files)
                 {
-                    AddProcess(file);
+                    if (workspaces[chosenWorkspaceName].TryAdd(file.Name, file.Path)) {
+                        AddProcess(file.Name);
+                    }
                 }
-            }
-        }
-
-        private void EditProcessesButton_Click (object sender, RoutedEventArgs e)
-        {
-            ProcessesStackPanel.Visibility = Visibility.Visible;
-            AddProcessesButton.Visibility = Visibility.Visible;
-            DeleteButtonsStackPanel.Visibility = Visibility.Visible;
-            EditControlStackPanel.Visibility = Visibility.Visible;
-            EditProcessesButton.Visibility = Visibility.Collapsed;
-
-            ProcessNamesStackPanel.Margin = new Thickness(0, 0, 100, 0);
-            foreach(TextBlock processName in ProcessNamesStackPanel.Children)
-            {
-                processName.HorizontalAlignment = HorizontalAlignment.Left;
             }
         }
 
         private void RunButton_Click(object sender, RoutedEventArgs e)
         {
-            if(processes.Count == 0)
+            if (workspaces[chosenWorkspaceName].Count == 0)
             {
                 ShowMessageDialog("No processes to run");
                 return;
             }
-            foreach (StorageFile file in processes.Values)
+
+            foreach (var file in workspaces[chosenWorkspaceName])
             {
                 try
                 {
-                    Process.Start(file.Path);
+                    Process.Start(file.Value);
                 }
                 catch (Exception ex)
                 {
-                    ShowMessageDialog($"Error running {file.Name}: {ex.Message}");
+                    ShowMessageDialog($"Error running {file.Key}: {ex.Message}");
                 }
             }
         }
@@ -141,8 +205,8 @@ namespace ALWO
 
             // Get the process name from the encoded Name of the button
             string processName = deleteButton.Name.Substring("DeleteButton".Length);
-            processes.Remove(deleteButton.Name.Substring("DeleteButton".Length));
-            foreach(TextBlock processNameTextBlock in ProcessNamesStackPanel.Children)
+            workspaces[chosenWorkspaceName].Remove(deleteButton.Name.Substring("DeleteButton".Length));
+            foreach (TextBlock processNameTextBlock in ProcessNamesStackPanel.Children)
             {
                 if(processNameTextBlock.Text == processName)
                 {
@@ -154,24 +218,40 @@ namespace ALWO
 
         private void ClearProcessesButton_Click(object sender, RoutedEventArgs e)
         {
-            processes.Clear();
-            ProcessNamesStackPanel.Children.Clear();
-            DeleteButtonsStackPanel.Children.Clear();
+            ClearProcesses();
         }
 
         private void DoneButton_Click(object sender, RoutedEventArgs e)
         {
-            ProcessesStackPanel.Visibility = processes.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+            // Hide the editing tools
+            ProcessNamesStackPanel.Visibility = workspaces[chosenWorkspaceName].Count == 0 ? Visibility.Collapsed : Visibility.Visible;
             AddProcessesButton.Visibility = Visibility.Collapsed;
             DeleteButtonsStackPanel.Visibility = Visibility.Collapsed;
             EditControlStackPanel.Visibility = Visibility.Collapsed;
             EditProcessesButton.Visibility = Visibility.Visible;
 
+            // Center the ProcessesNames
             ProcessNamesStackPanel.Margin = new Thickness(0);
             foreach (TextBlock processName in ProcessNamesStackPanel.Children)
             {
                 processName.HorizontalAlignment = HorizontalAlignment.Center;
             }
+
+            string encodedProcessPaths = string.Join(",", workspaces[chosenWorkspaceName].Values);
+            List<string> workspaceProcesses = WorkspaceInfoAccess.GetProcessPaths(chosenWorkspaceName);
+            if (workspaceProcesses.Count == 0)
+            {
+                WorkspaceInfoAccess.AddWorkspace(chosenWorkspaceName, encodedProcessPaths);
+            }
+            else
+            {
+                WorkspaceInfoAccess.UpdateWorkspace(chosenWorkspaceName, encodedProcessPaths);
+            }
+        }
+
+        private void WorkspaceNameTextBox_TextChanging(TextBox sender, TextBoxTextChangingEventArgs args)
+        {
+
         }
     }
 }
