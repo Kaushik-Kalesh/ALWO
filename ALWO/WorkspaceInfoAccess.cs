@@ -21,6 +21,7 @@ namespace ALWO
             await ApplicationData.Current.LocalFolder
                     .CreateFileAsync(dbFileName, CreationCollisionOption.OpenIfExists);
             dbPath = Path.Combine(ApplicationData.Current.LocalFolder.Path, dbFileName);
+
             using (var db = new SqliteConnection($"Filename={dbPath}"))
             {
                 db.Open();
