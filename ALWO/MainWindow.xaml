@@ -9,15 +9,17 @@
     mc:Ignorable="d">
 
     <StackPanel x:Name="MainStackPanel" Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Center">
-        <StackPanel x:Name="WorkspaceTitleStackPanel" Orientation="Horizontal" Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center">
-            <TextBox PlaceholderText="Workspace Name" Margin="0, 0, 8, 0"/>
-            <Button x:Name="RunButton" Content="Run" Click="RunButton_Click"/>
+        <StackPanel Orientation="Horizontal" Margin="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBox x:Name="WorkspaceNameTextBox" PlaceholderText="Workspace Name" TextChanged="WorkspaceNameTextBox_TextChanged" Margin="0, 0, 8, 0"/>
+            <Button x:Name="RunButton" Content="Run" Margin="0, 0, 8, 0" Click="RunButton_Click"  Visibility="Collapsed"/>
+            <Button x:Name="FetchProcessesButton" Content="Fetch" Margin="0, 0, 8, 0" Click="FetchProcessesButton_Click"/>
+            <Button x:Name="DeleteWorkspaceButton" Content="Delete" Click="DeleteWorkspaceButton_Click" Visibility="Collapsed"/>
         </StackPanel>
-        <StackPanel x:Name="ProcessesStackPanel" Orientation="Vertical" Margin="12" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
+        <StackPanel Orientation="Vertical" Margin="12" VerticalAlignment="Center" HorizontalAlignment="Center">
             <Button x:Name="AddProcessesButton" Content="Add Process(es)" Visibility="Collapsed"
                 Click="AddProcessesButton_Click" Margin="0, 0, 0, 10" HorizontalAlignment="Center"/>
             <StackPanel Orientation="Horizontal">
-                <StackPanel x:Name="ProcessNamesStackPanel" Orientation="Vertical" Margin="0, 0, 100, 0" />
+                <StackPanel x:Name="ProcessNamesStackPanel" Orientation="Vertical" HorizontalAlignment="Center" />
                 <StackPanel x:Name="DeleteButtonsStackPanel" Orientation="Vertical" Visibility="Collapsed" />
             </StackPanel>
             <StackPanel x:Name="EditControlStackPanel" Orientation="Horizontal" Margin="12"  HorizontalAlignment="Center" Visibility="Collapsed">
@@ -28,6 +30,6 @@ Click="DoneButton_Click"/>
             </StackPanel>
         </StackPanel>
         <Button x:Name="EditProcessesButton" Content="Edit" 
-        Click="EditProcessesButton_Click" HorizontalAlignment="Center"/>
+        Click="EditProcessesButton_Click" HorizontalAlignment="Center" Visibility="Collapsed"/>
     </StackPanel>
 </Window>
