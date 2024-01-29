@@ -19,29 +19,63 @@ using System.Diagnostics;
 using Microsoft.UI.Xaml.Shapes;
 using Windows.Media.Protection.PlayReady;
 using static System.Net.WebRequestMethods;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 
 namespace ALWO
 {
+    public class ProcessItem : INotifyPropertyChanged
+    {
+        private Visibility _deleteButtonVisibility;
+        private Thickness _processNameMargin;
+
+        public string ProcessName { get; set; }
+
+        public Visibility DeleteButtonVisibility
+        {
+            get => _deleteButtonVisibility;
+            set
+            {
+                if (_deleteButtonVisibility != value)
+                {
+                    _deleteButtonVisibility = value;
+                    OnPropertyChanged(nameof(DeleteButtonVisibility));
+                }
+            }
+        }
+
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
     public sealed partial class MainWindow : Window
     {
+        public ObservableCollection<ProcessItem> ProcessesCollection { get; } = new ObservableCollection<ProcessItem>();
         private Dictionary<string, Dictionary<string, string>> workspaces = new Dictionary<string, Dictionary<string, string>>();
         private string chosenWorkspaceName = "";
+        private bool isEditModeActive = false;
 
         public MainWindow()
         {
             this.InitializeComponent();
+            ProcessesListView.ItemsSource = ProcessesCollection;
             FetchWorkspaces();
         }
 
         // Helper function to display Message Dialogs
         private async void ShowMessageDialog(string message)
         {
-            ContentDialog dialog = new ContentDialog
+            var dialog = new ContentDialog
             {
                 Title = "Message",
                 Content = message,
                 CloseButtonText = "Ok",
-                XamlRoot = MainStackPanel.XamlRoot
+                XamlRoot = MainGrid.XamlRoot
             };
 
             await dialog.ShowAsync();
@@ -65,32 +99,32 @@ namespace ALWO
         }
         private void AddProcess(string processName)
         {
-            // Add process which includes a Name and Delete Button
-            ProcessNamesStackPanel.Children.Add(new TextBlock
+            if (processName == "") { return; }
+            ProcessesCollection.Add(new ProcessItem
             {
-                Text = processName,
-                FontSize = 20,
-                Margin = new Thickness(0, 0, 0, 15)
+                ProcessName = processName,
+                DeleteButtonVisibility = isEditModeActive ? Visibility.Visible : Visibility.Collapsed
             });
-
-            // Assign a unique Name to the button
-            ButtonBase deleteButton = new Button
-            {
-                Name = $"DeleteButton{processName}",
-                Content = "Delete",
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-            deleteButton.Click += DeleteButton_Click;
-            DeleteButtonsStackPanel.Children.Add(deleteButton);
         }
 
         // Clear processes from the UI
         private void ClearProcesses()
         {
-            workspaces.Remove(chosenWorkspaceName);
-            ProcessNamesStackPanel.Children.Clear();
-            DeleteButtonsStackPanel.Children.Clear();
+            if (!workspaces.TryAdd(chosenWorkspaceName, new Dictionary<string, string>()))
+            {
+                workspaces[chosenWorkspaceName] = new Dictionary<string, string>();
+            }
+            ProcessesCollection.Clear();
         }
+
+        private void ToggleProcessItemState()
+        {
+            foreach (var processItem in ProcessesCollection)
+            {
+                processItem.DeleteButtonVisibility = isEditModeActive ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+
 
         //Event Handlers
         private void WorkspaceNameTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -101,10 +135,7 @@ namespace ALWO
         private void FetchProcessesButton_Click(object sender, RoutedEventArgs e)
         {
             // Ignore fetch requests from the workspace already in focus
-            if (WorkspaceNameTextBox.Text == chosenWorkspaceName)
-            {
-                return;
-            }
+            if (WorkspaceNameTextBox.Text == chosenWorkspaceName) { return; }
 
             ClearProcesses();             
 
@@ -120,23 +151,27 @@ namespace ALWO
             RunButton.Visibility = Visibility.Visible;
             EditProcessesButton.Visibility = Visibility.Visible;
             DeleteWorkspaceButton.Visibility = Visibility.Visible;
-            ProcessNamesStackPanel.Visibility = workspaces[chosenWorkspaceName].Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         }
 
-        private void EditProcessesButton_Click(object sender, RoutedEventArgs e)
+        private void RunButton_Click(object sender, RoutedEventArgs e)
         {
-            // Make the editing tools visible
-            ProcessNamesStackPanel.Visibility = Visibility.Visible;
-            AddProcessesButton.Visibility = Visibility.Visible;
-            DeleteButtonsStackPanel.Visibility = Visibility.Visible;
-            EditControlStackPanel.Visibility = Visibility.Visible;
-            EditProcessesButton.Visibility = Visibility.Collapsed;
-
-            // Un-Center the ProcessesNames
-            ProcessNamesStackPanel.Margin = new Thickness(0, 0, 100, 0);
-            foreach (TextBlock processName in ProcessNamesStackPanel.Children)
+            if (workspaces[chosenWorkspaceName].Count == 0)
             {
-                processName.HorizontalAlignment = HorizontalAlignment.Left;
+                ShowMessageDialog("No processes to run");
+                return;
+            }
+
+            foreach (var processItem in ProcessesCollection)
+            {
+                try
+                {
+                    Process.Start(workspaces[chosenWorkspaceName][processItem.ProcessName]);
+                    System.Threading.Thread.Sleep(100);
+                }
+                catch (Exception ex)
+                {
+                    ShowMessageDialog($"Error running {processItem.ProcessName}: {ex.Message}");
+                }
             }
         }
 
@@ -145,6 +180,20 @@ namespace ALWO
             WorkspaceInfoAccess.DeleteWorkspace(chosenWorkspaceName);
             ClearProcesses();
             chosenWorkspaceName = "";
+        }
+
+        private void EditProcessesButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Make the editing tools visible
+            isEditModeActive = true;
+            AddProcessesButton.Visibility = Visibility.Visible;
+            EditControlStackPanel.Visibility = Visibility.Visible;
+            EditProcessesButton.Visibility = Visibility.Collapsed;
+            ToggleProcessItemState();
+            ProcessesListView.CanDragItems = true;
+            ProcessesListView.CanReorderItems = true;
+            ProcessesListView.AllowDrop = true; 
+
         }
 
         private async void AddProcessesButton_Click(object sender, RoutedEventArgs e)
@@ -178,42 +227,20 @@ namespace ALWO
             }
         }
 
-        private void RunButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (workspaces[chosenWorkspaceName].Count == 0)
-            {
-                ShowMessageDialog("No processes to run");
-                return;
-            }
-
-            foreach (var file in workspaces[chosenWorkspaceName])
-            {
-                try
-                {
-                    Process.Start(file.Value);
-                }
-                catch (Exception ex)
-                {
-                    ShowMessageDialog($"Error running {file.Key}: {ex.Message}");
-                }
-            }
-        }
-
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
-            Button deleteButton = sender as Button;
+            var deleteButton = (Button)sender;
 
             // Get the process name from the encoded Name of the button
-            string processName = deleteButton.Name.Substring("DeleteButton".Length);
-            workspaces[chosenWorkspaceName].Remove(deleteButton.Name.Substring("DeleteButton".Length));
-            foreach (TextBlock processNameTextBlock in ProcessNamesStackPanel.Children)
+            var deletedProcessName = ((ProcessItem)deleteButton.DataContext).ProcessName;
+            workspaces[chosenWorkspaceName].Remove(deletedProcessName);
+            foreach (var processItem in ProcessesCollection.ToArray())
             {
-                if(processNameTextBlock.Text == processName)
+                if (processItem.ProcessName == deletedProcessName)
                 {
-                    ProcessNamesStackPanel.Children.Remove(processNameTextBlock);
+                    ProcessesCollection.Remove(processItem);
                 }
             }
-            (deleteButton.Parent as StackPanel).Children.Remove(deleteButton);
         }
 
         private void ClearProcessesButton_Click(object sender, RoutedEventArgs e)
@@ -224,20 +251,22 @@ namespace ALWO
         private void DoneButton_Click(object sender, RoutedEventArgs e)
         {
             // Hide the editing tools
-            ProcessNamesStackPanel.Visibility = workspaces[chosenWorkspaceName].Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+            isEditModeActive = false;
             AddProcessesButton.Visibility = Visibility.Collapsed;
-            DeleteButtonsStackPanel.Visibility = Visibility.Collapsed;
             EditControlStackPanel.Visibility = Visibility.Collapsed;
             EditProcessesButton.Visibility = Visibility.Visible;
+            ToggleProcessItemState();
+            ProcessesListView.CanDragItems = false;
+            ProcessesListView.CanReorderItems = false;
+            ProcessesListView.AllowDrop = false;
 
-            // Center the ProcessesNames
-            ProcessNamesStackPanel.Margin = new Thickness(0);
-            foreach (TextBlock processName in ProcessNamesStackPanel.Children)
+            var processesPathList = new List<string>();
+            foreach(var processItem in ProcessesCollection)
             {
-                processName.HorizontalAlignment = HorizontalAlignment.Center;
+                processesPathList.Add(workspaces[chosenWorkspaceName][processItem.ProcessName]);
             }
 
-            string encodedProcessPaths = string.Join(",", workspaces[chosenWorkspaceName].Values);
+            string encodedProcessPaths = string.Join(",", processesPathList);
             List<string> workspaceProcesses = WorkspaceInfoAccess.GetProcessPaths(chosenWorkspaceName);
             if (workspaceProcesses.Count == 0)
             {
@@ -249,9 +278,25 @@ namespace ALWO
             }
         }
 
-        private void WorkspaceNameTextBox_TextChanging(TextBox sender, TextBoxTextChangingEventArgs args)
+        private void ProcessesListView_DragItemsStarting(object sender, DragItemsStartingEventArgs e)
         {
+            e.Data.Properties.Add("DraggedItems", ProcessesListView.SelectedItems.Cast<ProcessItem>().ToList());
+        }
 
+        private void ProcessesListView_Drop(object sender, DragEventArgs e)
+        {
+            if (e.Data.Properties.TryGetValue("DraggedItems", out object draggedItemsObj) && draggedItemsObj is List<ProcessItem> draggedItems)
+            {
+                int startingIndex = ProcessesCollection.IndexOf(draggedItems.First());
+
+                // Reorder the items in the ObservableCollection based on the new order
+                List<ProcessItem> newOrder = ProcessesListView.Items.Cast<ProcessItem>().ToList();
+                for (int i = 0; i < draggedItems.Count; i++)
+                {
+                    int newIndex = newOrder.IndexOf(draggedItems[i]);
+                    ProcessesCollection.Move(startingIndex + i, newIndex);
+                }
+            }
         }
     }
 }
