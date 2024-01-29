@@ -27,7 +27,6 @@ namespace ALWO
     public class ProcessItem : INotifyPropertyChanged
     {
         private Visibility _deleteButtonVisibility;
-        private Thickness _processNameMargin;
 
         public string ProcessName { get; set; }
 
@@ -63,6 +62,8 @@ namespace ALWO
         public MainWindow()
         {
             this.InitializeComponent();
+            ExtendsContentIntoTitleBar = true;
+            SetTitleBar(AppTitleBar);
             ProcessesListView.ItemsSource = ProcessesCollection;
             FetchWorkspaces();
         }
