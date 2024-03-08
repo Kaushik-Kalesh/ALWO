@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using Windows.Storage;
 
 namespace ALWO
@@ -26,10 +25,11 @@ namespace ALWO
             {
                 db.Open();
 
-                string tableCommand = "CREATE TABLE IF NOT EXISTS Workspaces (Primary_Key INTEGER PRIMARY KEY, Workspace_Name NVARCHAR(20), Process_Paths NVARCHAR(512) NULL);";
+                string tableCommand = "CREATE TABLE IF NOT EXISTS Workspaces (Primary_Key INTEGER PRIMARY KEY, Workspace_Name NVARCHAR(20), Process_Names NVARCHAR(20) NULL, Process_Paths NVARCHAR(512) NULL);";
                 tableName = "Workspaces";
                 fieldNames.Add("Primary_Key");
                 fieldNames.Add("Workspace_Name");
+                fieldNames.Add("Process_Names");
                 fieldNames.Add("Process_Paths");
 
                 var createTable = new SqliteCommand(tableCommand, db);
@@ -38,7 +38,7 @@ namespace ALWO
             }
         }
 
-        public static void AddWorkspace(string workspaceNamw, string encodedProcessPaths)
+        public static void AddWorkspace(string workspaceNamw, string encodedProcessNames, string encodedProcessPaths)
         {
             using (var db = new SqliteConnection($"Filename={dbPath}"))
             {
@@ -47,15 +47,16 @@ namespace ALWO
                 var insertCommand = new SqliteCommand();
                 insertCommand.Connection = db;
 
-                insertCommand.CommandText = $"INSERT INTO {tableName} VALUES (NULL, @WorkspaceName, @ProcessPaths);";
+                insertCommand.CommandText = $"INSERT INTO {tableName} VALUES (NULL, @WorkspaceName, @ProcessNames, @ProcessPaths);";
                 insertCommand.Parameters.AddWithValue("@WorkspaceName", workspaceNamw);
+                insertCommand.Parameters.AddWithValue("@ProcessNames", encodedProcessNames);
                 insertCommand.Parameters.AddWithValue("@ProcessPaths", encodedProcessPaths);
 
                 insertCommand.ExecuteReader();
             }
         }
 
-        public static void UpdateWorkspace(string workspaceName, string encodedProcessPaths)
+        public static void UpdateWorkspace(string workspaceName, string encodedProcessNames, string encodedProcessPaths)
         {
             using (var db = new SqliteConnection($"Filename={dbPath}"))
             {
@@ -64,8 +65,9 @@ namespace ALWO
                 var updateCommand = new SqliteCommand();
                 updateCommand.Connection = db;
 
-                updateCommand.CommandText = $"UPDATE {tableName} set {fieldNames[2]}=@ProcessPaths where {fieldNames[1]}=@WorkspaceName;";
+                updateCommand.CommandText = $"UPDATE {tableName} set {fieldNames[2]}=@ProcessNames, {fieldNames[3]}=@ProcessPaths where {fieldNames[1]}=@WorkspaceName;";
                 updateCommand.Parameters.AddWithValue("@WorkspaceName", workspaceName);
+                updateCommand.Parameters.AddWithValue("@ProcessNames", encodedProcessNames);
                 updateCommand.Parameters.AddWithValue("@ProcessPaths", encodedProcessPaths);
 
 
@@ -80,18 +82,46 @@ namespace ALWO
             using (var db = new SqliteConnection($"Filename={dbPath}"))
             {
                 db.Open();
-                var selectCommand = new SqliteCommand
-                    ($"SELECT {fieldNames[1]} from {tableName}", db);
-
-                SqliteDataReader query = selectCommand.ExecuteReader();
-
-                while(query.Read())
+                try
                 {
-                    workspaceNames.Add(query.GetString(0));
+                    var selectCommand = new SqliteCommand
+                        ($"SELECT {fieldNames[1]} from {tableName}", db);
+
+                    SqliteDataReader query = selectCommand.ExecuteReader();
+
+                    while (query.Read())
+                    {
+                        workspaceNames.Add(query.GetString(0));
+                    }
                 }
+                catch { }
             }
 
             return workspaceNames;
+        }
+
+        public static List<string> GetProcessNames(string workspaceName)
+        {
+            var processNames = new List<string>();
+
+            using (var db = new SqliteConnection($"Filename={dbPath}"))
+            {
+                db.Open();
+                var selectCommand = new SqliteCommand
+                    ($"SELECT {fieldNames[2]} from {tableName} where {fieldNames[1]} = '{workspaceName}';", db);
+
+                SqliteDataReader query = selectCommand.ExecuteReader();
+
+                while (query.Read())
+                {
+                    foreach (string processName in query.GetString(0).Split(","))
+                    {
+                        processNames.Add(processName);
+                    }
+                }
+            }
+
+            return processNames;
         }
 
         public static List<string> GetProcessPaths(string workspaceName)
@@ -102,7 +132,7 @@ namespace ALWO
             {
                 db.Open();
                 var selectCommand = new SqliteCommand
-                    ($"SELECT {fieldNames[2]} from {tableName} where {fieldNames[1]} = '{workspaceName}';", db);
+                    ($"SELECT {fieldNames[3]} from {tableName} where {fieldNames[1]} = '{workspaceName}';", db);
 
                 SqliteDataReader query = selectCommand.ExecuteReader();
 

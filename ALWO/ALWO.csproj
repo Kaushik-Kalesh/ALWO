@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.22621.0</TargetFramework>
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>ALWO</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -10,7 +10,39 @@
     <PublishProfile>win10-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
+    <PackageIcon>Icon.png</PackageIcon>
+    <ApplicationIcon>Assets\Icon.ico</ApplicationIcon>
+    <SupportedOSPlatformVersion>10.0.22621.0</SupportedOSPlatformVersion>
+	<UseRidGraph>true</UseRidGraph>
   </PropertyGroup>
+  <ItemGroup>
+    <Content Remove="Assets\ALWO464x464Logo.altform-lightunplated_targetsize-16.png" />
+    <Content Remove="Assets\ALWO464x464Logo.altform-lightunplated_targetsize-24.png" />
+    <Content Remove="Assets\ALWO464x464Logo.altform-lightunplated_targetsize-256.png" />
+    <Content Remove="Assets\ALWO464x464Logo.altform-lightunplated_targetsize-32.png" />
+    <Content Remove="Assets\ALWO464x464Logo.altform-lightunplated_targetsize-48.png" />
+    <Content Remove="Assets\ALWO464x464Logo.altform-unplated_targetsize-16.png" />
+    <Content Remove="Assets\ALWO464x464Logo.altform-unplated_targetsize-24.png" />
+    <Content Remove="Assets\ALWO464x464Logo.altform-unplated_targetsize-256.png" />
+    <Content Remove="Assets\ALWO464x464Logo.altform-unplated_targetsize-32.png" />
+    <Content Remove="Assets\ALWO464x464Logo.altform-unplated_targetsize-48.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="AppChooserWindow.xaml" />
+    <None Remove="Assets\ALWO464x464Logo.scale-100.png" />
+    <None Remove="Assets\ALWO464x464Logo.scale-125.png" />
+    <None Remove="Assets\ALWO464x464Logo.scale-150.png" />
+    <None Remove="Assets\ALWO464x464Logo.scale-200.png" />
+    <None Remove="Assets\ALWO464x464Logo.scale-400.png" />
+    <None Remove="Assets\ALWO464x464Logo.targetsize-16.png" />
+    <None Remove="Assets\ALWO464x464Logo.targetsize-16_altform-unplated.png" />
+    <None Remove="Assets\ALWO464x464Logo.targetsize-24.png" />
+    <None Remove="Assets\ALWO464x464Logo.targetsize-256.png" />
+    <None Remove="Assets\ALWO464x464Logo.targetsize-256_altform-unplated.png" />
+    <None Remove="Assets\ALWO464x464Logo.targetsize-32.png" />
+    <None Remove="Assets\ALWO464x464Logo.targetsize-48.png" />
+    <None Remove="MainPage.xaml" />
+  </ItemGroup>
 
   <ItemGroup>
     <Content Include="Assets\SplashScreen.scale-200.png" />
@@ -27,6 +59,7 @@
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.4.230913002" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.755" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.118" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
 
@@ -37,6 +70,18 @@
   -->
   <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
     <ProjectCapability Include="Msix" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Assets\Icon.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <Page Update="AppChooserWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="MainPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
 
   <!-- 

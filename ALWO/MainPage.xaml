@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ALWO.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ALWO"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!-- Main Window Grid -->
+    <Grid x:Name="MainGrid" Margin="24, 48, 24, 24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Workspace Title Grid -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="400" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox Grid.Column="0" x:Name="WorkspaceNameTextBox" PlaceholderText="Workspace Name" 
+                         MaxLength="20" FontSize="30" IsEnabled="False" Visibility="Collapsed" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" />
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <Button x:Name="EditButton" Click="EditButton_Click" Margin="0, 0, 8, 0" HorizontalAlignment="Center" 
+                         Visibility="Collapsed" FontSize="30">
+                    <StackPanel Orientation="Horizontal">
+                        <FontIcon Glyph="&#xE70F;" Margin="0, 0, 8, 0"/>
+                        <TextBlock Text="Edit" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="RunButton" Margin="0, 0, 8, 0" Click="RunButton_Click" Visibility="Collapsed" FontSize="30">
+                    <StackPanel Orientation="Horizontal">
+                        <FontIcon Glyph="&#xE768;" Margin="0, 0, 8, 0"/>
+                        <TextBlock Text="Run" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="DeleteWorkspaceButton" Click="DeleteWorkspaceButton_Click" Visibility="Collapsed" FontSize="30">
+                    <StackPanel Orientation="Horizontal">
+                        <FontIcon Glyph="&#xE74D;" Margin="0, 0, 8, 0"/>
+                        <TextBlock Text="Delete" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Processes StackPanel -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Orientation="Vertical" VerticalAlignment="Center" ScrollViewer.VerticalScrollMode="Enabled">
+                <TextBlock x:Name="ProcessesTextBlock"  Text="No Workspaces" FontSize="40" HorizontalAlignment="Center" 
+                       Style="{StaticResource TitleTextBlockStyle}" Margin="0, 0, 0, 12" />
+                <StackPanel x:Name="ProcessesStackPanel" Orientation="Vertical" Margin="12" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Button x:Name="AddProcessesButton" Visibility="Collapsed" Click="AddProcessesButton_Click" 
+                             Margin="0, 0, 0, 12" HorizontalAlignment="Center" FontSize="20">
+                        <StackPanel Orientation="Horizontal">
+                            <FontIcon Glyph="&#xE710;" Margin="0, 0, 8, 0"/>
+                            <TextBlock Text="Add" />
+                        </StackPanel>
+                    </Button>
+                    <ListView x:Name="ProcessesListView" SelectionMode="Single" DragItemsStarting="ProcessesListView_DragItemsStarting" Drop="ProcessesListView_Drop">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid DataContext="{Binding}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding ProcessName}" Margin="0, 6, 0, 6" FontSize="25"/>
+                                    <Button Grid.Column="1" Click="DeleteButton_Click" Visibility="{Binding DeleteButtonVisibility}" 
+                                             Margin="700, 6, 0, 6">
+                                        <FontIcon Grid.Column="1" Glyph="&#xE74D;" />
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <StackPanel x:Name="EditControlStackPanel" Orientation="Vertical" HorizontalAlignment="Center" Margin="12" Visibility="Collapsed">
+                        <Button x:Name="ClearProcessesButton" Click="ClearProcessesButton_Click" HorizontalAlignment="Center" FontSize="20">
+                            <StackPanel Orientation="Horizontal">
+                                <FontIcon Glyph="&#xE75C;" Margin="0, 0, 8, 0"/>
+                                <TextBlock Text="Clear" />
+                            </StackPanel>
+                        </Button>
+                        <StackPanel Orientation="Horizontal" Margin="8">
+                            <Button x:Name="SaveButton" Click="SaveButton_Click" Margin="0, 0, 8, 0" FontSize="20">
+                                <StackPanel Orientation="Horizontal">
+                                    <FontIcon Glyph="&#xE74E;" Margin="0, 0, 8, 0"/>
+                                    <TextBlock Text="Save" />
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="CancelButton" Click="CancelButton_Click" FontSize="20">
+                                <StackPanel Orientation="Horizontal">
+                                    <FontIcon Glyph="&#xE894;" Margin="0, 0, 8, 0"/>
+                                    <TextBlock Text="Canel" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>
