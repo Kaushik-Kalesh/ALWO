@@ -3,10 +3,6 @@ using Microsoft.UI.Xaml.Controls;
 using System.Linq;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Threading.Tasks;
-using System;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using System.Threading;
 
 namespace ALWO
 {
@@ -55,7 +51,7 @@ namespace ALWO
             WorkspacesNavigationView.MenuItemsSource = WorkspacesCollection;
 
             MainFrame.Navigate(typeof(MainPage));
-            InitializeWorkspacesCollection();
+            InitializeWorkspacesCollection();            
         }
 
         private async void InitializeWorkspacesCollection()

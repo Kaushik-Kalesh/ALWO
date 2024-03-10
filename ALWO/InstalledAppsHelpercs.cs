@@ -1,7 +1,6 @@
 ﻿using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -18,6 +17,7 @@ namespace ALWO
         public BitmapImage Icon { get; set; }
     }
 
+    // TODO: Fetch WindowsApps (Microsoft Store) applications 
     class InstalledApps
     {
         private static  List<AppInfo> installedApps = new List<AppInfo>();

@@ -16,7 +16,13 @@
 
     <ScrollView>
         <StackPanel Orientation="Vertical">
-            <ListView Name="AppsListView" SelectionMode="Multiple">
+            <AutoSuggestBox x:Name="AppNameAutoSuggestBox" HorizontalAlignment="Center" PlaceholderText="Search for an app" QueryIcon="Find"
+                            TextChanged="AppNameAutoSuggestBox_TextChanged"/>
+            <StackPanel x:Name="LoadingStackPanel" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0, 12, 0, 12">
+                <TextBlock Text="Fetching Apps..." Margin="0,0,0,8"/>
+                <ProgressRing IsActive="True" Width="50" Height="50"/>
+            </StackPanel>
+            <ListView Name="AppsListView" SelectionMode="Multiple" SelectionChanged="AppsListView_SelectionChanged"> 
                 <ListView.ItemTemplate>
                     <DataTemplate>
                         <StackPanel Orientation="Horizontal">
@@ -26,7 +32,11 @@
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
-            <Button Click="DoneButton_Click" Content="Done" Margin="0, 8, 0, 8" HorizontalAlignment="Center" />
+            <StackPanel x:Name="ManualSearchStackPanel" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0, 12, 0, 12">
+                <TextBlock Text="Can't find the app your looking for?" Margin="0, 0, 0, 8"/>
+                <Button x:Name="ManualSearchButton" Content="Open File Explorer" Click="ManualSearchButton_Click" HorizontalAlignment="Center"/>
+            </StackPanel>
+            <Button x:Name="DoneButton" Click="DoneButton_Click" Content="Done" Margin="0, 8, 0, 8" HorizontalAlignment="Center" />
         </StackPanel>
     </ScrollView>
 </Window>

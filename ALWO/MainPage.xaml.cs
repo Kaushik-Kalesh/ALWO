@@ -6,9 +6,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using Windows.Storage.Pickers;
-using Windows.Storage;
-using System.IO;
 using System.Threading.Tasks;
 
 namespace ALWO
@@ -31,7 +28,6 @@ namespace ALWO
                 }
             }
         }
-
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -285,6 +281,7 @@ namespace ALWO
                 try
                 {
                     Process.Start(processesNameMap[processItem.ProcessName]);
+                    // TODO: Try to extend the interval
                     System.Threading.Thread.Sleep(50); // To ensure delay between app launches
                 }
                 catch (Exception ex)
@@ -301,32 +298,6 @@ namespace ALWO
 
         private void AddProcessesButton_Click(object sender, RoutedEventArgs e)
         {
-            //// Create a file picker
-            //var openPicker = new Windows.Storage.Pickers.FileOpenPicker();
-
-            //var window = App.MainWindow;
-
-            //// Retrieve the window handle (HWND) of the current WinUI 3 window.
-            //var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
-
-            //// Initialize the file picker with the window handle (HWND).
-            //WinRT.Interop.InitializeWithWindow.Initialize(openPicker, hWnd);
-
-            //// Set options for your file picker
-            //openPicker.ViewMode = PickerViewMode.List;
-            //openPicker.SuggestedStartLocation = PickerLocationId.Desktop;
-            //openPicker.FileTypeFilter.Add(".exe");
-
-            //// Open the picker for the user to pick a file
-            //IReadOnlyList<StorageFile> files = await openPicker.PickMultipleFilesAsync();
-            //if (files.Count > 0)
-            //{
-            //    foreach (StorageFile file in files)
-            //    {
-            //        AddProcess(file.Name, file.Path);
-            //    }
-            //}
-
             if (isAppChooserWindowOpen) { return; }
 
             MainWindow.appChooserWindow = new AppChooserWindow();

@@ -18,14 +18,14 @@ namespace ALWO
         {
             dbFileName = "workspaces_info.db";
             await ApplicationData.Current.LocalFolder
-                    .CreateFileAsync(dbFileName, CreationCollisionOption.OpenIfExists);
-            dbPath = Path.Combine(ApplicationData.Current.LocalFolder.Path, dbFileName);
+                    .CreateFileAsync(dbFileName, CreationCollisionOption.OpenIfExists);           
+            dbPath = Path.Combine(ApplicationData.Current.LocalFolder.Path, dbFileName);            
 
             using (var db = new SqliteConnection($"Filename={dbPath}"))
             {
                 db.Open();
 
-                string tableCommand = "CREATE TABLE IF NOT EXISTS Workspaces (Primary_Key INTEGER PRIMARY KEY, Workspace_Name NVARCHAR(20), Process_Names NVARCHAR(20) NULL, Process_Paths NVARCHAR(512) NULL);";
+                string tableCommand = "CREATE TABLE IF NOT EXISTS Workspaces (Primary_Key INTEGER PRIMARY KEY, Workspace_Name NVARCHAR(20), Process_Names NVARCHAR(512) NULL, Process_Paths NVARCHAR(512) NULL);";
                 tableName = "Workspaces";
                 fieldNames.Add("Primary_Key");
                 fieldNames.Add("Workspace_Name");
