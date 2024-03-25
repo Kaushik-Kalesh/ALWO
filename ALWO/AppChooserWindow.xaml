@@ -15,7 +15,7 @@
     </Window.SystemBackdrop>
 
     <ScrollView>
-        <StackPanel Orientation="Vertical">
+        <StackPanel Orientation="Vertical" Margin="12" >
             <AutoSuggestBox x:Name="AppNameAutoSuggestBox" HorizontalAlignment="Center" PlaceholderText="Search for an app" QueryIcon="Find"
                             TextChanged="AppNameAutoSuggestBox_TextChanged"/>
             <StackPanel x:Name="LoadingStackPanel" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0, 12, 0, 12">
