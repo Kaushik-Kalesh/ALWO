@@ -20,35 +20,37 @@ namespace ALWO
     public sealed partial class AppChooserWindow : Window
     {
         public List<AppInfo> SelectedApps { get; set; } = new List<AppInfo>();
-        private List<AppInfo> installedApps = new List<AppInfo>();
+        public List<AppInfo> InstalledApps { get; set; }
         public ObservableCollection<AppItem> AppItemCollection { get; set; } = new ObservableCollection<AppItem>();
 
-        public AppChooserWindow()
+        public AppChooserWindow(List<AppInfo> installedApps)
         {
             this.InitializeComponent();
             
             AppsListView.ItemsSource = AppItemCollection;
 
+            InstalledApps = installedApps;
             DisplayAllApps();
         }
 
+
         private async void DisplayAllApps()
         {
-            if (installedApps.Count == 0)
+            if (InstalledApps.Count == 0)
             {
                 LoadingStackPanel.Visibility = Visibility.Visible;
                 DoneButton.Visibility = Visibility.Collapsed;
-                installedApps = await InstalledApps.GetInstalledApps();
+                InstalledApps = await InstalledApplications.GetInstalledApps();
                 LoadingStackPanel.Visibility = Visibility.Collapsed;
                 DoneButton.Visibility = Visibility.Visible;
             }
 
-            installedApps.ForEach(e => AppItemCollection.Add(new AppItem
-                                       {
-                                           Name = e.Name,
-                                           Icon = e.Icon,
-                                           Path = e.Path,
-                                       }));
+            InstalledApps.ForEach(e => AppItemCollection.Add(new AppItem
+            {
+                Name = e.Name,
+                Icon = e.Icon,
+                Path = e.Path,
+            }));
         }
 
         private void Window_Closed(object sender, WindowEventArgs args)
@@ -75,7 +77,7 @@ namespace ALWO
                 return;
             }
 
-            installedApps.Where(e => e.Name.ToLower().Contains(appName)).ToList().ForEach(e => AppItemCollection.Add(new AppItem
+            InstalledApps.Where(e => e.Name.ToLower().Contains(appName)).ToList().ForEach(e => AppItemCollection.Add(new AppItem
             {
                 Icon = e.Icon,
                 Name = e.Name,

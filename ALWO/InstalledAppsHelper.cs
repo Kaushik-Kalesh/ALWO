@@ -18,10 +18,13 @@ namespace ALWO
     }
 
     // TODO: Fetch WindowsApps (Microsoft Store) applications 
-    class InstalledApps
+    class InstalledApplications
     {
         private static  List<AppInfo> installedApps = new List<AppInfo>();
-        private const string START_MENU_PATH = @"C:\ProgramData\Microsoft\Windows\Start Menu\Programs";
+        private static List<string> shortcutsDirectories = new List<string> {
+            @"C:\ProgramData\Microsoft\Windows\Start Menu\Programs",
+            @"C:\Users\kaush\AppData\Roaming\Microsoft\Windows\Start Menu\Programs"
+        };
 
         private async static Task AddApp(string dir)
         {
@@ -53,16 +56,18 @@ namespace ALWO
 
         public async static Task<List<AppInfo>> GetInstalledApps()
         {
-            await AddApp(START_MENU_PATH);
-
-            foreach (var dir in Directory.GetDirectories(START_MENU_PATH))
+            foreach (var shrtDir in shortcutsDirectories)
             {
-                await AddApp(dir);
+                await AddApp(shrtDir);
+
+                foreach (var dir in Directory.GetDirectories(shrtDir))
+                {
+                    await AddApp(dir);
+                }
             }
-            
-            return installedApps.DistinctBy(e => e.Path)
-                                .OrderBy(e => e.Name)
-                                .ToList();
+                return installedApps.DistinctBy(e => e.Path)
+                                    .OrderBy(e => e.Name)
+                                    .ToList();
         }
     }
 }

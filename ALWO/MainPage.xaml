@@ -8,6 +8,59 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
+    <Page.Resources>
+        <DataTemplate x:Key="VDTemplate" x:DataType="local:ProcessItem">
+            <TreeViewItem ItemsSource="{x:Bind Children}" IsExpanded="True">
+                <Grid Margin="0, 0, 40, 0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox Grid.Column="0" Text="{x:Bind VDName}" FontSize="25" Margin="0, 0, 8, 0" 
+                         TextChanged="{x:Bind VDNameTextBox_TextChanged}" IsEnabled="{x:Bind IsVDNameEditable, Mode=OneWay}" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" />
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Visibility="{x:Bind EditToolsVisibility, Mode=OneWay}" VerticalAlignment="Center">
+                        <TextBox Text="{x:Bind TimeInterval}" Margin="0, 0, 8, 0" VerticalAlignment="Center" 
+                             MaxLength="2" FontSize="15" TextChanged="{x:Bind TimeIntervalTextBox_TextChanged}" />
+                        <Button Content="Add" VerticalAlignment="Bottom" Click="{x:Bind AddButton_Click}" Margin="0, 0, 8, 0" />
+                        <Button Content="Delete" VerticalAlignment="Bottom" Click="{x:Bind DeleteVDButton_Click}" />
+                    </StackPanel>
+                </Grid>
+            </TreeViewItem>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ProcessTemplate" x:DataType="local:ProcessItem">
+            <TreeViewItem>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <Image Source="{x:Bind Icon}" Height="20" Width="20" Margin="0, 0, 8, 0" VerticalAlignment="Center" />
+                        <TextBlock Text="{x:Bind ProcessName}" Margin="0, 0, 8, 0" VerticalAlignment="Center" FontSize="20" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" />
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0, 0, 50, 0" Visibility="{x:Bind EditToolsVisibility, Mode=OneWay}">
+                        <Button Margin="5" VerticalAlignment="Center" Click="{x:Bind DeleteButton_Click}">
+                            <FontIcon Glyph="&#xE74D;" FontSize="20"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </TreeViewItem>
+        </DataTemplate>
+
+        <local:ProcessItemTemplateSelector x:Key="ItemTemplateSelector"
+        VDTemplate="{StaticResource VDTemplate}"
+        ProcessTemplate="{StaticResource ProcessTemplate}" />
+
+    </Page.Resources>
+
     <!-- Main Window Grid -->
     <Grid x:Name="MainGrid" Margin="24, 48, 24, 24">
         <Grid.RowDefinitions>
@@ -16,7 +69,7 @@
         </Grid.RowDefinitions>
 
         <!-- Workspace Title Grid -->
-        <Grid Grid.Row="0">
+        <Grid x:Name="WorkspaceTitleGrid"  Grid.Row="0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="400" />
                 <ColumnDefinition Width="*" />
@@ -48,10 +101,26 @@
             </StackPanel>
         </Grid>
 
-        <!-- Processes StackPanel -->
+        <!-- Processes StackPanel -->        
         <ScrollViewer Grid.Row="1">
-            <StackPanel Orientation="Vertical" VerticalAlignment="Center" ScrollViewer.VerticalScrollMode="Enabled">
-                <TextBlock x:Name="ProcessesTextBlock"  Text="No Workspaces" FontSize="40" HorizontalAlignment="Center" 
+            <StackPanel x:Name="VirtualDesktopsStackPanel" Orientation="Vertical" ScrollViewer.VerticalScrollMode="Enabled" Margin="0, 24, 0, 0" VerticalAlignment="Center">
+                <TreeView x:Name="VDTreeView"
+                  ItemTemplateSelector="{StaticResource ItemTemplateSelector}"
+                  SelectionMode="None" 
+                  CanDrag="False"
+                  CanDragItems="False"
+                  AllowDrop="False"
+                  CanReorderItems="False" />
+                <StackPanel x:Name="EditToolsStackPanel" Orientation="Vertical" Visibility="Collapsed">
+                    <Button x:Name="NewDesktopButton" Content="New Desktop" Click="NewDesktopButton_Click" 
+                HorizontalAlignment="Center" Margin="12" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button x:Name="SaveButton" Content="Save" Click="SaveButton_Click" Margin="0, 0, 8, 0" />
+                        <Button x:Name="CancelButton" Content="Cancel" Click="CancelButton_Click" />
+                    </StackPanel>
+                </StackPanel>
+                <TextBlock x:Name="NoWorkspacesTextBlock" Text="No Workspaces" FontWeight="Bold" FontSize="30" HorizontalAlignment="Center" />
+                <!--<TextBlock x:Name="ProcessesTextBlock"  Text="No Workspaces" FontSize="40" HorizontalAlignment="Center" 
                        Style="{StaticResource TitleTextBlockStyle}" Margin="0, 0, 0, 12" />
                 <StackPanel x:Name="ProcessesStackPanel" Orientation="Vertical" Margin="12" VerticalAlignment="Center" HorizontalAlignment="Center">
                     <Button x:Name="AddProcessesButton" Visibility="Collapsed" Click="AddProcessesButton_Click" 
@@ -100,7 +169,7 @@
                             </Button>
                         </StackPanel>
                     </StackPanel>
-                </StackPanel>
+                </StackPanel>-->
             </StackPanel>
         </ScrollViewer>
     </Grid>

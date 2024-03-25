@@ -3,58 +3,42 @@ using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using WindowsDesktop;
 
 namespace ALWO
 {
-    public class ProcessItem : INotifyPropertyChanged
+    public class ProcessItemTemplateSelector : DataTemplateSelector
     {
-        private Visibility _deleteButtonVisibility;
+        public DataTemplate VDTemplate { get; set; }
+        public DataTemplate ProcessTemplate { get; set; }
 
-        public string ProcessName { get; set; }
-
-        public Visibility DeleteButtonVisibility
+        protected override DataTemplate SelectTemplateCore(object item)
         {
-            get => _deleteButtonVisibility;
-            set
-            {
-                if (_deleteButtonVisibility != value)
-                {
-                    _deleteButtonVisibility = value;
-                    OnPropertyChanged(nameof(DeleteButtonVisibility));
-                }
-            }
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected virtual void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            return (item as ProcessItem).IsProcess ? ProcessTemplate : VDTemplate;
         }
     }
 
     public sealed partial class MainPage : Page
     {
-        public ObservableCollection<ProcessItem> ProcessesCollection { get; } = new ObservableCollection<ProcessItem>();
-        private ObservableCollection<ProcessItem> TemporaryProcessesCollection = new ObservableCollection<ProcessItem>();
-        private Dictionary<string, string> processesNameMap = new Dictionary<string, string>();
-        private Dictionary<string, string> temporaryProcessesNameMap = new Dictionary<string, string>();
-        private string chosenWorkspaceName = "";
+        public static ObservableCollection<ProcessItem> VirtualDesktops { get; set; } = new ObservableCollection<ProcessItem>();
+        public static ObservableCollection<ProcessItem> BackupVirtualDesktops { get; set; } = new ObservableCollection<ProcessItem>();
+
+        private static List<AppInfo> installedApps = new List<AppInfo>();
+        private string chosenWorkspaceName = string.Empty;
         private bool isEditModeEnabled = false;
-        private bool isAppChooserWindowOpen = false;
+        private static string chosenVDName = string.Empty;
 
         public MainPage()
         {
             this.InitializeComponent();
 
-            ProcessesListView.ItemsSource = ProcessesCollection;
+            VDTreeView.ItemsSource = VirtualDesktops;
         }
 
-        // Helper tools
+        // Helper functions
         public async void ShowMessageDialog(string message)
         {
             try
@@ -103,73 +87,145 @@ namespace ALWO
             return -1;
         }
 
-        // Hide or Show editing tools 
-        private void ToggleEditMode(bool _isEditModeEnabled)
-        {
-            isEditModeEnabled = _isEditModeEnabled;
-            WorkspaceNameTextBox.IsEnabled = _isEditModeEnabled;
-            ProcessesTextBlock.Visibility = _isEditModeEnabled ? Visibility.Collapsed : Visibility.Visible;
-            AddProcessesButton.Visibility = _isEditModeEnabled ? Visibility.Visible : Visibility.Collapsed;
-            EditControlStackPanel.Visibility = _isEditModeEnabled ? Visibility.Visible : Visibility.Collapsed;
-            EditButton.Visibility = _isEditModeEnabled ? Visibility.Collapsed : Visibility.Visible;
-            foreach (var processItem in ProcessesCollection)
-            {
-                processItem.DeleteButtonVisibility = _isEditModeEnabled ? Visibility.Visible : Visibility.Collapsed;
-            }
-            ProcessesListView.CanDragItems = _isEditModeEnabled;
-            ProcessesListView.CanReorderItems = _isEditModeEnabled;
-            ProcessesListView.AllowDrop = _isEditModeEnabled;
-        }
-
-        private void AddProcess(string processName, string processPath)
-        {
-            if (processName == "") { return; }
-
-            if (processesNameMap.TryAdd(processName, processPath))
-            {
-                ProcessesCollection.Add(new ProcessItem
-                {
-                    ProcessName = processName,
-                    DeleteButtonVisibility = isEditModeEnabled ? Visibility.Visible : Visibility.Collapsed
-                });
-            }
-        }
-
-        private void ClearProcesses()
-        {
-            processesNameMap.Clear();
-            ProcessesCollection.Clear();
-        }
-
-        public async Task FetchProcesses(string workspaceName, bool isNewWorkspace = false)
+        private async Task SaveAlert()
         {
             if (isEditModeEnabled)
             {
                 await ShowConfirmationDialog("Save Changes?", SaveChanges, CancelChanges);
             }
+        }
 
-            // Ignore fetch requests from the workspace already in focus
-            if (workspaceName == chosenWorkspaceName) { return; }
-
-            ClearProcesses();
-
-            WorkspaceNameTextBox.Visibility = Visibility.Visible;
-            WorkspaceNameTextBox.Text = chosenWorkspaceName = workspaceName;
-            List<string> processNames = WorkspaceInfoAccess.GetProcessNames(chosenWorkspaceName), processPaths = WorkspaceInfoAccess.GetProcessPaths(chosenWorkspaceName);
-            for (int i = 0; i < processNames.Count; i++)
+        private void ToggleEditMode(bool isActive)
+        {
+            isEditModeEnabled = isActive;
+            foreach (ProcessItem vd in VirtualDesktops)
             {
-                AddProcess(processNames[i], processPaths[i]);
-            }
-            ProcessesTextBlock.Visibility = Visibility.Visible;
-            ProcessesTextBlock.Text = processesNameMap.Count == 0 ? "No Processes" : "Processes";
-            RunButton.Visibility = Visibility.Visible;
-            EditButton.Visibility = Visibility.Visible;
-            DeleteWorkspaceButton.Visibility = Visibility.Visible;
+                vd.IsVDNameEditable = isActive;
+                vd.EditToolsVisibility = isActive ? Visibility.Visible : Visibility.Collapsed;
 
-            if (isNewWorkspace)
-            {
-                ToggleEditMode(true); // Open new workspace in edit mode
+                vd.Children.ToList().ForEach(e => e.EditToolsVisibility = isActive ? Visibility.Visible : Visibility.Collapsed);
             }
+            foreach (ProcessItem vd in BackupVirtualDesktops)
+            {
+                vd.IsVDNameEditable = isActive;
+                vd.EditToolsVisibility = isActive ? Visibility.Visible : Visibility.Collapsed;
+
+                vd.Children.ToList().ForEach(e => e.EditToolsVisibility = isActive ? Visibility.Visible : Visibility.Collapsed);
+            }
+
+            EditButton.Visibility = isActive ? Visibility.Collapsed : Visibility.Visible;
+            WorkspaceNameTextBox.IsEnabled = isActive;
+            DeleteWorkspaceButton.Visibility = isActive ? Visibility.Visible : Visibility.Collapsed;
+            EditToolsStackPanel.Visibility = isActive ? Visibility.Visible : Visibility.Collapsed;            
+
+            if (isActive)
+            {
+                BackupVirtualDesktops.Clear();
+                VirtualDesktops.ToList().ForEach(e => BackupVirtualDesktops.Add(e.Clone() as ProcessItem));
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(chosenVDName))
+                {
+                    MainWindow.appChooserWindow.Close();
+                }
+            }
+        }
+
+
+        private static void NewVirtualDesktop(string name = "New Desktop")
+        {
+            VirtualDesktops.Add(new ProcessItem
+            {
+                VDName = name,
+                TimeInterval = 1,
+                IsVDNameEditable = true,
+                EditToolsVisibility = Visibility.Visible
+            });
+        }
+
+        private static VirtualDesktop GetVirtualDesktop(string vdName)
+        {
+            return VirtualDesktop.GetDesktops().FirstOrDefault(e => e.Name == vdName);
+        }
+
+        private void ClearVirtualDesktops()
+        {
+            VirtualDesktops.Clear();
+            BackupVirtualDesktops.Clear();
+        }
+
+        private async void DeleteWorkspace()
+        {
+            ToggleEditMode(false);
+
+            WorkspaceInfoAccess.DeleteWorkspace(chosenWorkspaceName);
+            // Delete the workspace from the NavigationView
+            MainWindow.WorkspacesCollection.Remove(MainWindow.WorkspacesCollection.FirstOrDefault(e => e.WorkspaceName == chosenWorkspaceName));
+            ClearVirtualDesktops();
+
+            if (MainWindow.WorkspacesCollection.Count > 0)
+            {
+                await FetchVirtualDesktops(MainWindow.WorkspacesCollection.Last().WorkspaceName);
+            }
+            else
+            {
+                // If no workspaces are left, update the UI
+                WorkspaceNameTextBox.Text = chosenWorkspaceName = string.Empty;
+                WorkspaceNameTextBox.Visibility = Visibility.Collapsed;
+                RunButton.Visibility = Visibility.Collapsed;
+                EditButton.Visibility = Visibility.Collapsed;
+                DeleteWorkspaceButton.Visibility = Visibility.Collapsed;
+                EditToolsStackPanel.Visibility = Visibility.Collapsed;
+                NoWorkspacesTextBlock.Visibility = Visibility.Visible;
+                VirtualDesktopsStackPanel.VerticalAlignment = VerticalAlignment.Center;
+            }
+        }
+
+        public static void DeleteVD(string vdName)
+        {
+            if (VirtualDesktop.GetDesktops().Count() == 1)
+            {
+                NewVirtualDesktop();
+            }
+
+            VirtualDesktops.Remove(VirtualDesktops.FirstOrDefault(e => e.VDName == vdName));
+        }
+
+        public static void DeleteProcess(string VDName, string ProcesName)
+        {
+            ObservableCollection<ProcessItem> processes = VirtualDesktops.FirstOrDefault(e => e.VDName == VDName).Children;
+            processes.Remove(processes.FirstOrDefault(e => e.ProcessName == ProcesName));
+        }
+
+        public static void AddProcesses(string vdName)
+        {
+            if (!string.IsNullOrEmpty(chosenVDName)) { return; }
+
+            MainWindow.appChooserWindow = new AppChooserWindow(installedApps);
+            MainWindow.appChooserWindow.Activate();            
+            chosenVDName = vdName;
+            MainWindow.appChooserWindow.Closed += AppChooserWindow_Closed;
+        }
+
+        private static void AppChooserWindow_Closed(object sender, WindowEventArgs args)
+        {
+            AppChooserWindow acw = sender as AppChooserWindow;
+            ProcessItem vd = VirtualDesktops.FirstOrDefault(e => e.VDName == chosenVDName);
+
+            acw.SelectedApps.ForEach(e => vd.Children.Add(new ProcessItem
+            {
+                VDName = chosenVDName,
+                Icon = e.Icon,
+                ProcessName = e.Name,
+                ProcessPath = e.Path,                
+                IsVDNameEditable = true,
+                EditToolsVisibility = Visibility.Visible
+            }));
+
+            installedApps = acw.InstalledApps;
+
+            chosenVDName = string.Empty;
         }
 
         private void SaveChanges()
@@ -178,116 +234,96 @@ namespace ALWO
             {
                 ShowMessageDialog("Workspace Name already used");
                 return;
-            }
+            }           
 
             ToggleEditMode(false);
 
-            // Delete process names based on the updated ProcessesCollection
-            foreach (var processName in processesNameMap.Keys)
+            foreach (var vd in VirtualDesktops)
             {
-                if (!ProcessesCollection.Select(e => e.ProcessName).Contains(processName))
+                if (!BackupVirtualDesktops.Select(e => e.VDName).ToList().Contains(vd.VDName))
                 {
-                    processesNameMap.Remove(processName);
+                    VirtualDesktop newVirtualDesktop = VirtualDesktop.Create();
+                    newVirtualDesktop.Name = vd.VDName;
+                }
+            }
+            foreach (var vd in BackupVirtualDesktops)
+            {
+                if (!VirtualDesktops.Select(e => e.VDName).ToList().Contains(vd.VDName))
+                {
+                    GetVirtualDesktop(vd.VDName).Remove();
                 }
             }
 
-            ProcessesTextBlock.Text = processesNameMap.Count == 0 ? "No Processes" : "Processes";
-            var processesPathList = new List<string>();
-            var processesNameList = new List<string>();
-            foreach (var processItem in ProcessesCollection)
-            {
-                processesNameList.Add(processItem.ProcessName);
-                processesPathList.Add(processesNameMap[processItem.ProcessName]);
-            }
+            MainWindow.WorkspacesCollection.Remove(MainWindow.WorkspacesCollection.FirstOrDefault(e => e.WorkspaceName == chosenWorkspaceName));
+            WorkspaceInfoAccess.DeleteWorkspace(chosenWorkspaceName);
 
-            string encodedProcessPaths = string.Join(",", processesPathList), encodedProcessNames = string.Join(",", processesNameList);
-            if (chosenWorkspaceName != WorkspaceNameTextBox.Text)
-            {
-                WorkspaceInfoAccess.DeleteWorkspace(chosenWorkspaceName);
-                MainWindow.WorkspacesCollection.Remove(MainWindow.WorkspacesCollection.FirstOrDefault(e => e.WorkspaceName == chosenWorkspaceName));
-                chosenWorkspaceName = WorkspaceNameTextBox.Text;
-                // Update the workspace name in the NavigationView
-                MainWindow.WorkspacesCollection.Add(new WorkspaceNavigationItem { WorkspaceName = chosenWorkspaceName });
-                WorkspaceInfoAccess.AddWorkspace(chosenWorkspaceName, encodedProcessNames, encodedProcessPaths);
-            }
-            else
-            {
-                WorkspaceInfoAccess.UpdateWorkspace(chosenWorkspaceName, encodedProcessNames, encodedProcessPaths);
-            }
+            chosenWorkspaceName = WorkspaceNameTextBox.Text;
+            MainWindow.WorkspacesCollection.Add(new WorkspaceNavigationItem { WorkspaceName = chosenWorkspaceName });
+            WorkspaceInfoAccess.UpdateWorkspace(chosenWorkspaceName, VirtualDesktops);
         }
 
         private void CancelChanges()
         {
-            ClearProcesses();
-
-            // Discard the changes 
-            TemporaryProcessesCollection.ToList().ForEach(e => ProcessesCollection.Add(e));
-            temporaryProcessesNameMap.ToList().ForEach(e => processesNameMap.TryAdd(e.Key, e.Value));
-
             ToggleEditMode(false);
+
+            VirtualDesktops.Clear();
+            BackupVirtualDesktops.ToList().ForEach(e => VirtualDesktops.Add(e.Clone() as ProcessItem));
         }
 
-        private async void DeleteWorkspace()
+        public async Task FetchVirtualDesktops(string workspaceName, bool isNewWorkspace = false)
         {
-            WorkspaceInfoAccess.DeleteWorkspace(chosenWorkspaceName);
-            // Delete the workspace from the NavigationView
-            MainWindow.WorkspacesCollection.Remove(MainWindow.WorkspacesCollection.FirstOrDefault(e => e.WorkspaceName == chosenWorkspaceName));
-            ClearProcesses();
+            await SaveAlert();
 
-            if (MainWindow.WorkspacesCollection.Count > 0)
+            // Ignore fetch requests from the workspace already in focus
+            if (workspaceName == chosenWorkspaceName) { return; }
+            
+            ClearVirtualDesktops();
+
+            WorkspaceNameTextBox.Visibility = Visibility.Visible;
+            WorkspaceNameTextBox.Text = chosenWorkspaceName = workspaceName;
+
+            WorkspaceInfoAccess.GetVirtualDesktops(workspaceName).ToList().ForEach(e => VirtualDesktops.Add(e));            
+
+            RunButton.Visibility = Visibility.Visible;
+            EditButton.Visibility = Visibility.Visible;
+            DeleteWorkspaceButton.Visibility = Visibility.Collapsed;
+            EditToolsStackPanel.Visibility = Visibility.Collapsed;
+            NoWorkspacesTextBlock.Visibility = Visibility.Collapsed;
+            VirtualDesktopsStackPanel.VerticalAlignment = VerticalAlignment.Top;
+
+            if (isNewWorkspace)
             {
-                await FetchProcesses(MainWindow.WorkspacesCollection.Last().WorkspaceName);
-            }
-            else
-            {
-                // If no workspaces are left, update the UI
-                WorkspaceNameTextBox.Visibility = Visibility.Collapsed;
-                WorkspaceNameTextBox.Text = chosenWorkspaceName = "";
-                ProcessesTextBlock.Visibility = Visibility.Visible;
-                ProcessesTextBlock.Text = "No Workspaces";
-                RunButton.Visibility = Visibility.Collapsed;
-                EditButton.Visibility = Visibility.Collapsed;
-                DeleteWorkspaceButton.Visibility = Visibility.Collapsed;
+                ToggleEditMode(true); // Open new workspace in edit mode                
             }
         }
 
         //Event Handlers
         private void EditButton_Click(object sender, RoutedEventArgs e)
         {
-            TemporaryProcessesCollection.Clear();
-            ProcessesCollection.ToList().ForEach(e => TemporaryProcessesCollection.Add(e));
-
-            temporaryProcessesNameMap.Clear();
-            processesNameMap.ToList().ForEach(e => temporaryProcessesNameMap.TryAdd(e.Key, e.Value)); 
-
             ToggleEditMode(true);
         }
 
         private async void RunButton_Click(object sender, RoutedEventArgs e)
         {
-            if (isEditModeEnabled)
-            {
-                await ShowConfirmationDialog("Save Changes?", SaveChanges, CancelChanges);
-            }
+            await SaveAlert();
 
-            if (processesNameMap.Count == 0)
+            foreach (var vd in VirtualDesktops)
             {
-                ShowMessageDialog("No processes to run");
-                return;
-            }
+                if(vd.Children.Count == 0) { continue; }
 
-            foreach (var processItem in ProcessesCollection)
-            {
-                try
+                GetVirtualDesktop(vd.VDName).Switch();
+                foreach (var process in vd.Children)
                 {
-                    Process.Start(processesNameMap[processItem.ProcessName]);
-                    // TODO: Try to extend the interval
-                    System.Threading.Thread.Sleep(50); // To ensure delay between app launches
+                    try
+                    {
+                        Process.Start(process.ProcessPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        ShowMessageDialog($"Error running {process.ProcessName}: {ex.Message}");
+                    }
                 }
-                catch (Exception ex)
-                {
-                    ShowMessageDialog($"Error running {processItem.ProcessName}: {ex.Message}");
-                }
+                System.Threading.Thread.Sleep(vd.TimeInterval * 1000); // To ensure delay between virtual desktop switches
             }
         }
 
@@ -296,32 +332,9 @@ namespace ALWO
             await ShowConfirmationDialog("Are you sure?", DeleteWorkspace);
         }
 
-        private void AddProcessesButton_Click(object sender, RoutedEventArgs e)
+        private void NewDesktopButton_Click(object sender, RoutedEventArgs e)
         {
-            if (isAppChooserWindowOpen) { return; }
-
-            MainWindow.appChooserWindow = new AppChooserWindow();
-            MainWindow.appChooserWindow.Activate();
-            isAppChooserWindowOpen = true;
-            MainWindow.appChooserWindow.Closed += AppChooserWindow_Closed;
-        }
-
-        private void AppChooserWindow_Closed(object sender, WindowEventArgs args)
-        {
-            (sender as AppChooserWindow).SelectedApps.ForEach(e => AddProcess(e.Name, e.Path));
-            isAppChooserWindowOpen = false;
-        }
-
-        private void DeleteButton_Click(object sender, RoutedEventArgs e)
-        {
-            var deleteButton = sender as Button;
-            var deletedProcessName = (deleteButton.DataContext as ProcessItem).ProcessName;
-            ProcessesCollection.Remove(ProcessesCollection.FirstOrDefault(e => e.ProcessName == deletedProcessName));
-        }
-
-        private void ClearProcessesButton_Click(object sender, RoutedEventArgs e)
-        {
-            ClearProcesses();
+            NewVirtualDesktop();
         }
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
@@ -332,27 +345,6 @@ namespace ALWO
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
             CancelChanges();
-        }
-
-        private void ProcessesListView_DragItemsStarting(object sender, DragItemsStartingEventArgs e)
-        {
-            e.Data.Properties.Add("DraggedItems", ProcessesListView.SelectedItems.Cast<ProcessItem>().ToList());
-        }
-
-        private void ProcessesListView_Drop(object sender, DragEventArgs e)
-        {
-            if (e.Data.Properties.TryGetValue("DraggedItems", out object draggedItemsObj) && draggedItemsObj is List<ProcessItem> draggedItems)
-            {
-                int startingIndex = ProcessesCollection.IndexOf(draggedItems.First());
-
-                // Reorder the items in the ObservableCollection based on the new order
-                List<ProcessItem> newOrder = ProcessesListView.Items.Cast<ProcessItem>().ToList();
-                for (int i = 0; i < draggedItems.Count; i++)
-                {
-                    int newIndex = newOrder.IndexOf(draggedItems[i]);
-                    ProcessesCollection.Move(startingIndex + i, newIndex);
-                }
-            }
         }
     }
 }
