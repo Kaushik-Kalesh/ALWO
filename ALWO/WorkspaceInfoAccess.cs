@@ -1,22 +1,33 @@
 ﻿using Microsoft.Data.Sqlite;
+using Microsoft.UI.Xaml;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using Windows.Storage;
+using WindowsDesktop;
 
 namespace ALWO
 {
     public static class WorkspaceInfoAccess
     {
-        private static string dbFileName;
+        private static string dbFileName = "workspaces_info.db";
         private static string dbPath;
-        private static string tableName;
-        private static List<string> fieldNames = new List<string>();
+        private static string tableName = "Workspaces";
+        private interface FieldNames
+        {
+            const string PrimaryKey = "Primary_Key";
+            const string WorkspaceName = "Workspace_Name";
+            const string VDName = "VD_Name";
+            const string VDInterval = "VD_Interval";
+            const string ProcessName = "Process_Name";
+            const string ProcessPath = "Process_Path";
+        };
 
         public async static void InitializeDatabase()
         {
-            dbFileName = "workspaces_info.db";
             await ApplicationData.Current.LocalFolder
                     .CreateFileAsync(dbFileName, CreationCollisionOption.OpenIfExists);           
             dbPath = Path.Combine(ApplicationData.Current.LocalFolder.Path, dbFileName);            
@@ -25,12 +36,8 @@ namespace ALWO
             {
                 db.Open();
 
-                string tableCommand = "CREATE TABLE IF NOT EXISTS Workspaces (Primary_Key INTEGER PRIMARY KEY, Workspace_Name NVARCHAR(20), Process_Names NVARCHAR(512) NULL, Process_Paths NVARCHAR(512) NULL);";
-                tableName = "Workspaces";
-                fieldNames.Add("Primary_Key");
-                fieldNames.Add("Workspace_Name");
-                fieldNames.Add("Process_Names");
-                fieldNames.Add("Process_Paths");
+                string tableCommand = "CREATE TABLE IF NOT EXISTS Workspaces (Primary_Key INTEGER PRIMARY KEY, Workspace_Name NVARCHAR(20), " +
+                                      "VD_Name NVARCHAR(20) NULL, VD_Interval INTEGER NULL, Process_Name NVARCHAR(20) NULL, Process_Path NVARCHAR(20) NULL);";
 
                 var createTable = new SqliteCommand(tableCommand, db);
 
@@ -38,40 +45,58 @@ namespace ALWO
             }
         }
 
-        public static void AddWorkspace(string workspaceNamw, string encodedProcessNames, string encodedProcessPaths)
+        public static void UpdateWorkspace(string workspaceName, ObservableCollection<ProcessItem> virtualDesktops)
         {
             using (var db = new SqliteConnection($"Filename={dbPath}"))
             {
                 db.Open();
 
-                var insertCommand = new SqliteCommand();
-                insertCommand.Connection = db;
+                foreach (var vd in virtualDesktops)
+                {
+                    foreach (var process in vd.Children)
+                    {
+                        var insertCommand = new SqliteCommand();
+                        insertCommand.Connection = db;
 
-                insertCommand.CommandText = $"INSERT INTO {tableName} VALUES (NULL, @WorkspaceName, @ProcessNames, @ProcessPaths);";
-                insertCommand.Parameters.AddWithValue("@WorkspaceName", workspaceNamw);
-                insertCommand.Parameters.AddWithValue("@ProcessNames", encodedProcessNames);
-                insertCommand.Parameters.AddWithValue("@ProcessPaths", encodedProcessPaths);
+                        insertCommand.CommandText = $"INSERT INTO {tableName} VALUES (NULL, @WorkspaceName, @VDName, @VDInterval, @ProcessName, @ProcessPath);";
+                        insertCommand.Parameters.AddWithValue("@WorkspaceName", workspaceName);
+                        insertCommand.Parameters.AddWithValue("@VDName", vd.VDName);
+                        insertCommand.Parameters.AddWithValue("@VDInterval", vd.TimeInterval);
+                        insertCommand.Parameters.AddWithValue("@ProcessName", process.ProcessName);
+                        insertCommand.Parameters.AddWithValue("@ProcessPath", process.ProcessPath);
 
-                insertCommand.ExecuteReader();
+                        insertCommand.ExecuteReader();
+                    }
+
+                    if (vd.Children.Count == 0)
+                    {
+                        var insertCommand = new SqliteCommand();
+                        insertCommand.Connection = db;
+
+                        insertCommand.CommandText = $"INSERT INTO {tableName} VALUES (NULL, @WorkspaceName, @VDName, NULL, NULL, NULL);";
+                        insertCommand.Parameters.AddWithValue("@WorkspaceName", workspaceName);
+                        insertCommand.Parameters.AddWithValue("@VDName", vd.VDName);
+
+                        insertCommand.ExecuteReader();
+                    }
+                }
             }
         }
 
-        public static void UpdateWorkspace(string workspaceName, string encodedProcessNames, string encodedProcessPaths)
+
+        public static void DeleteWorkspace(string workspaceName)
         {
             using (var db = new SqliteConnection($"Filename={dbPath}"))
             {
                 db.Open();
 
-                var updateCommand = new SqliteCommand();
-                updateCommand.Connection = db;
+                var deleteCommand = new SqliteCommand();
+                deleteCommand.Connection = db;
 
-                updateCommand.CommandText = $"UPDATE {tableName} set {fieldNames[2]}=@ProcessNames, {fieldNames[3]}=@ProcessPaths where {fieldNames[1]}=@WorkspaceName;";
-                updateCommand.Parameters.AddWithValue("@WorkspaceName", workspaceName);
-                updateCommand.Parameters.AddWithValue("@ProcessNames", encodedProcessNames);
-                updateCommand.Parameters.AddWithValue("@ProcessPaths", encodedProcessPaths);
+                deleteCommand.CommandText = $"DELETE FROM {tableName} WHERE {FieldNames.WorkspaceName}=@WorkspaceName;";
+                deleteCommand.Parameters.AddWithValue("@WorkspaceName", workspaceName);
 
-
-                updateCommand.ExecuteReader();
+                deleteCommand.ExecuteReader();
             }
         }
 
@@ -85,7 +110,7 @@ namespace ALWO
                 try
                 {
                     var selectCommand = new SqliteCommand
-                        ($"SELECT {fieldNames[1]} from {tableName}", db);
+                        ($"SELECT DISTINCT {FieldNames.WorkspaceName} FROM {tableName}", db);
 
                     SqliteDataReader query = selectCommand.ExecuteReader();
 
@@ -100,68 +125,48 @@ namespace ALWO
             return workspaceNames;
         }
 
-        public static List<string> GetProcessNames(string workspaceName)
+        public static ObservableCollection<ProcessItem> GetVirtualDesktops(string workspaceName)
         {
-            var processNames = new List<string>();
+            var virtualDestops = new ObservableCollection<ProcessItem>();
+
+            VirtualDesktop.GetDesktops().ToList().ForEach(e => virtualDestops.Add(new ProcessItem
+            {
+                VDName = e.Name,      
+                TimeInterval = 1,
+                IsVDNameEditable = false,
+                EditToolsVisibility = Visibility.Collapsed
+            }));
 
             using (var db = new SqliteConnection($"Filename={dbPath}"))
             {
                 db.Open();
-                var selectCommand = new SqliteCommand
-                    ($"SELECT {fieldNames[2]} from {tableName} where {fieldNames[1]} = '{workspaceName}';", db);
 
-                SqliteDataReader query = selectCommand.ExecuteReader();
-
-                while (query.Read())
+                foreach (var vd in virtualDestops)
                 {
-                    foreach (string processName in query.GetString(0).Split(","))
+                    var selectCommand = new SqliteCommand($"SELECT {FieldNames.VDInterval}, {FieldNames.ProcessName}, {FieldNames.ProcessPath} " +
+                                                 $"FROM {tableName} WHERE {FieldNames.VDName} = '{vd.VDName}' " +
+                                                 $"AND {FieldNames.WorkspaceName}='{workspaceName}';", db);
+
+
+                    SqliteDataReader query = selectCommand.ExecuteReader();
+                    while (query.Read())
                     {
-                        processNames.Add(processName);
+                        if(query.IsDBNull(0)) { continue; }
+
+                        vd.Children.Add(new ProcessItem
+                        {
+                            VDName = vd.VDName,
+                            TimeInterval = query.GetInt32(0),
+                            ProcessName = query.GetString(1),
+                            ProcessPath = query.GetString(2),
+                            IsVDNameEditable = false,
+                            EditToolsVisibility = Visibility.Collapsed
+                        });
                     }
                 }
             }
 
-            return processNames;
-        }
-
-        public static List<string> GetProcessPaths(string workspaceName)
-        {
-            var processPaths = new List<string>();
-
-            using (var db = new SqliteConnection($"Filename={dbPath}"))
-            {
-                db.Open();
-                var selectCommand = new SqliteCommand
-                    ($"SELECT {fieldNames[3]} from {tableName} where {fieldNames[1]} = '{workspaceName}';", db);
-
-                SqliteDataReader query = selectCommand.ExecuteReader();
-
-                while (query.Read())
-                {
-                    foreach (string processPath in query.GetString(0).Split(","))
-                    {
-                        processPaths.Add(processPath);
-                    }
-                }
-            }
-
-            return processPaths;
-        }
-
-        public static void DeleteWorkspace(string workspaceName)
-        {
-            using (var db = new SqliteConnection($"Filename={dbPath}"))
-            {
-                db.Open();
-
-                var deleteCommand = new SqliteCommand();
-                deleteCommand.Connection = db;
-
-                deleteCommand.CommandText = $"DELETE from {tableName} where {fieldNames[1]}=@WorkspaceName;";
-                deleteCommand.Parameters.AddWithValue("@WorkspaceName", workspaceName);
-
-                deleteCommand.ExecuteReader();
-            }
+            return virtualDestops;
         }
     }
 }

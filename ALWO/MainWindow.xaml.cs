@@ -63,7 +63,7 @@ namespace ALWO
             }
             if (MainFrame != null && MainFrame.Content is MainPage mainPage && WorkspacesCollection.Count > 0)
             {
-                await mainPage.FetchProcesses(WorkspacesCollection.First().WorkspaceName);
+                await mainPage.FetchVirtualDesktops(WorkspacesCollection.First().WorkspaceName);
             }
         }
 
@@ -72,7 +72,7 @@ namespace ALWO
             var selectedItem = args.SelectedItem as WorkspaceNavigationItem;
             if (MainFrame != null && MainFrame.Content is MainPage mainPage && WorkspacesCollection.Contains(selectedItem))
             {
-                await mainPage.FetchProcesses(selectedItem.WorkspaceName);
+                await mainPage.FetchVirtualDesktops(selectedItem.WorkspaceName);
             }
         }
 
@@ -83,16 +83,16 @@ namespace ALWO
             {
                 WorkspacesCollection.Add(new WorkspaceNavigationItem { WorkspaceName = newWorkspaceName });
                 WorkspacesNavigationView.SelectedItem = WorkspacesNavigationView.MenuItems.Last(); // Change selection to the new workspace
-                await mainPage.FetchProcesses(newWorkspaceName, true);
+                await mainPage.FetchVirtualDesktops(newWorkspaceName, true);
             }
-        }
+            }
 
         private async void Window_Closed(object sender, WindowEventArgs args)
         {
             if (MainFrame != null && MainFrame.Content is MainPage mainPage && WorkspacesCollection.Count > 0)
             {
                 args.Handled = true;
-                await mainPage.FetchProcesses(WorkspacesCollection.First().WorkspaceName);
+                await mainPage.FetchVirtualDesktops(WorkspacesCollection.First().WorkspaceName);
                 args.Handled = false;
             }
 
